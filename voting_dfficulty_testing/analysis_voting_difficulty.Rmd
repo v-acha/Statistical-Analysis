@@ -1,0 +1,364 @@
+---
+title: 'Assessing Voting Difficulty for Republicans vs Democrats'
+author: "Vanellsa Acha"
+date: "2024-06-29"
+output:
+  pdf_document: default
+  word_document: default
+  html_document: default
+subtitle: 'Lab 1: Analyzing Voting Difficulty'
+editor_options:
+  markdown:
+    wrap: sentence
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(readr)
+library(knitr)
+library(kableExtra)
+library(ggplot2)
+
+theme_set(theme_bw())
+
+options(tinytex.verbose = TRUE)
+knitr::opts_chunk$set(echo=FALSE, message=FALSE)
+```
+
+## Introduction:
+
+In recent years, the difficulty of voting has become a crucial topic of discussion in political science and public discourse.
+Understanding the obstacles voters face in casting their ballots is vital for ensuring a fair and equitable electoral process.
+This research aims to explore whether Democratic voters or Republican voters experience more difficulty voting, using data from the ANES 2022 Pilot Study.
+The research question is of significant interest to policymakers, electoral authorities, and political analysts, as it can inform strategies to improve voter accessibility and reduce barriers to voting.
+By examining voting difficulty through a partisan lens, we can identify systemic issues that may disproportionately affect specific groups and address them to enhance democratic participation.
+
+This analysis employs the Wilcoxon Rank Sum Test, a nonparametric statistical method suitable for comparing ordinal data distributions between two independent groups.
+Given the ordinal nature of the voting difficulty measure (votehard), this test is appropriate and robust for our analysis.
+The following report will define the key concepts, describe their operationalization, and detail the statistical procedures used to investigate the research question.
+Through this comprehensive approach, the reader will be well-prepared to understand the motivations, methods, and implications of the findings.
+
+## The Research Question
+
+(**Do Democratic voters or Republican voters experience more difficulty voting?**)
+
+# Conceptualizaton and Operationalization - Defining political affiliation and voting difficulty
+
+To thoroughly address the research question, we must clearly define and operationalize the key concepts: voter, party affiliation (Republican and Democrat), and voting difficulty.
+
+## 1. Who is a Voter?
+
+A voter is defined as any individual who has participated in the electoral process, regardless of the method used to cast their vote.
+In this study, a voter is identified through their responses to questions about voter registration and participation in recent elections.
+Specifically, individuals who reported voting in the 2022 elections (regardless of whether they voted in person or by mail) or those who were registered to vote at their current or previous address were considered voters.
+This inclusive definition ensures that all individuals who engage in the voting process are captured in the analysis.
+
+## 2. Who is a "Republican" and Who is a "Democrat"?
+
+Party affiliation was determined using a multi-step process that incorporated several survey questions to ensure accurate classification.
+The steps to define party affiliation are as follows:
+
+\*\*Initial Classification:\*\* Respondents were initially classified based on their responses to the question about general party identification (`pid1r`).
+Those who identified as Democrats (code 1) were labeled as "Democrat," and those who identified as Republicans (code 2) were labeled as "Republican."
+
+*Leaners:* For respondents who did not explicitly identify as Democrats or Republicans, their leaning was considered (`pidlean`).
+Those who leaned towards the Democratic Party (code 2) were labeled as "Democrat," and those who leaned towards the Republican Party (code 1) were labeled as "Republican."
+
+*Voting Behavior:* Voting behavior in recent elections was used to further refine classifications.
+Respondents who voted for Joe Biden in the 2020 Presidential election (`vote20`code 1) or Democratic candidates in the 2022 gubernatorial (`gov22p code 1`), House (`house22p code 1`), or Senate (`senate22p code 1`) elections were classified as "Democrat." Those who voted for Donald Trump (`vote20` code 2) or Republican candidates in the same elections were classified as "Republican."
+
+This approach ensured that individuals' party affiliations were accurately captured, reflecting their political preferences and voting behavior.
+Respondents who could not be classified due to missing data in these variables *were set to NA and excluded from the final analysis.*
+
+## 3. What is the Difficulty of Voting?
+
+Voting difficulty is conceptualized as the challenges and obstacles a voter encounters when attempting to cast their ballot.
+This concept is operationalized using the `votehard` variable, which measures voting difficulty on a scale from 1 (Not difficult at all) to 5 (Extremely difficult).
+This ordinal scale allows us to capture varying levels of difficulty experienced by voters.
+
+To ensure completeness, alternative measures of voting difficulty were considered, such as waiting times at polling stations (waittime) and travel time to polling places (triptime).
+However, for simplicity and clarity, the primary analysis focuses on the `votehard` variable.
+
+# Data Wrangling
+
+We will start by investigating the overall structure of the dataset to gain more information about user responses.
+We will then proceed to select our columns of interest (these columns will be used to define the variables needed for the tests.) We will check for missing values in these columns, summarizing their statistics and visualizing their distributions to further deepen our knowledge on their content.
+
+```{r echo=TRUE,include=FALSE}
+#loading the data
+data <- read.csv('anes_pilot_2022_csv_20221214.csv')
+
+#checking the structure of the dataset
+str(data)
+
+#summary of the dataset
+summary(data)
+
+#dimension names
+dim(data)
+
+# Column names
+names(data)
+
+#frequency table for values in the votehard column
+table(data$votehard)
+
+#CHECKING FOR MISSING VALUES
+# Columns of interest
+columns_of_interest <- c("votehard", "house22p", "senate22p", "gov22p", "vote20", "pid1r", "pidstr", "pidlean")
+
+# Check for missing values in the specified columns
+missing_values <- data %>%
+  select(all_of(columns_of_interest)) %>%
+  summarise_all(~sum(is.na(.)))
+
+# Display missing values in table format
+knitr::kable(missing_values, caption = "Missing Values in Specified Columns")
+
+#ISTRIBUTIONS FOR COLUMNS OF INTEREST
+# Gather the data for visualization
+data_long <- data %>%
+  select(all_of(columns_of_interest)) %>%
+  pivot_longer(cols = everything(), names_to = "variable", values_to = "value")
+
+# Plot distributions using ggplot2
+ggplot(data_long, aes(x = value)) +
+  geom_histogram(binwidth = 1, fill = "blue", color = "black") +
+  facet_wrap(~variable, scales = "free_x") +
+  theme_minimal() +
+  labs(title = "Distributions of Specified Columns", x = "Value", y = "Frequency")
+```
+
+Based on the results from data exploration, The variables of interest in this analysis include:
+
+**Party Affiliation:** Defined using multiple variables (pid1r, pidlean, vote20, gov22p, house22p, senate22p).
+
+**Voting Difficulty (`votehard`):** Measures the level of difficulty a respondent experienced when voting on a scale from 1 (Not difficult at all) to 5 (Extremely difficult).
+
+The frequency response for these variables are: `gov22p`: Vote for governor (1 = Democrat, 2 = Republican).
+`house22p`: Vote for House of Representatives (1 = Democrat, 2 = Republican).
+`pid1r`: General party identification (1 = Democrat, 2 = Republican).
+`pidlean`: Party leanings (1 = Lean Republican, 2 = Lean Democrat).
+`pidstr`: Strength of party identification.
+`senate22p`: Vote for Senate (1 = Democrat, 2 = Republican).
+`vote20`: Vote in the 2020 Presidential election (1 = Biden, 2 = Trump).
+`votehard`: Difficulty of voting (1 = Not difficult at all, 5 = Extremely difficult).
+
+# Data Understanding
+
+## Background on ANES
+
+The American National Election Studies (ANES) is a highly respected, long-running survey series that collects data on voting, public opinion, and political participation in the United States.
+Established in 1948, the ANES provides valuable insights into the electoral process, voter behavior, and the public's views on political issues.
+The data used in this analysis comes from the ANES 2022 Pilot Study, a pre-election survey designed to test new questions and methodologies in anticipation of the main 2022 ANES time series study.
+This pilot study captures a snapshot of the political landscape, voter engagement, and the challenges faced by voters leading up to the 2022 elections.
+
+The ANES data is widely used by researchers, policymakers, and educators to understand trends in voter behavior, assess the effectiveness of electoral policies, and study the dynamics of political attitudes in the U.S.
+Given its comprehensive nature and methodological rigor, ANES serves as a reliable source for examining complex political phenomena.
+
+## Handling Missing Data
+
+The ANES employs specific codes to handle missing data and nonresponses:
+
+-1: Inapplicable, legitimate skip (e.g., a follow-up question that was not applicable based on a previous response).
+For our analysis, we will ensure that -1 are treated as NA and exclude them.
+-4: Other/error (e.g., data missing due to a technical problem).
+-7: No answer (e.g., the respondent skipped the question).
+These codes ensure that the dataset maintains its integrity by differentiating between various types of nonresponse and missing data.
+For this analysis, missing values have been coded accordingly to ensure accurate representation of the data.
+
+## Defining our variables
+
+```{r echo=TRUE}
+# Ensure that -1 values are treated as NA for all relevant variables
+data[data == -1] <- NA
+
+# Defining party affiliation: Democrats=1 Republicans=2 setting to NA for all respondents
+data$party_affiliation <- NA
+
+# Using pid1r to define party affiliation, if not already defined - identify as democrat or republican
+data$party_affiliation[data$pid1r == 1 & is.na(data$party_affiliation)] <- "Democrat"
+data$party_affiliation[data$pid1r == 2 & is.na(data$party_affiliation)] <- "Republican"
+
+# Using pidlean to define party affiliation, if not already defined - leaning democrat or republican
+data$party_affiliation[data$pidlean == 2 & is.na(data$party_affiliation)] <- "Democrat"
+data$party_affiliation[data$pidlean == 1 & is.na(data$party_affiliation)] <- "Republican"
+
+# Using vote20 to define party affiliation, if not already defined - vote for Biden or Trump
+data$party_affiliation[data$vote20 == 1 & is.na(data$party_affiliation)] <- "Democrat"
+data$party_affiliation[data$vote20 == 2 & is.na(data$party_affiliation)] <- "Republican"
+
+# Using gov22p to define party affiliation - for governor vote, democrat or republican
+data$party_affiliation[data$gov22p == 1 & is.na(data$party_affiliation)] <- "Democrat"
+data$party_affiliation[data$gov22p == 2 & is.na(data$party_affiliation)] <- "Republican"
+
+# Using house22p - for house vote, democrat or republican
+data$party_affiliation[data$house22p == 1] <- "Democrat"
+data$party_affiliation[data$house22p == 2] <- "Republican"
+
+# Using senate22p to define party affiliation, - for senate vote, democrat or republican
+data$party_affiliation[data$senate22p == 1 & is.na(data$party_affiliation)] <- "Democrat"
+data$party_affiliation[data$senate22p == 2 & is.na(data$party_affiliation)] <- "Republican"
+
+# Ensure votehard is treated as an ordinal variable
+data <- data %>%
+  mutate(votehard = as.numeric(votehard))
+
+total_respondents <- nrow(data)
+
+summary_data <- data %>%
+  group_by(party_affiliation) %>%
+  summarize(
+    `Mean Voting Difficulty` = mean(votehard, na.rm = TRUE),
+    `Standard Deviation of Voting Difficulty` = sd(votehard, na.rm = TRUE),
+    `Number of Respondents` = n()
+  ) %>%
+  mutate(`Percentage of Respondents` = paste0(round((`Number of Respondents` / total_respondents) * 100, 2), "%")) %>%
+  rename(`Party Affiliation` = party_affiliation)
+
+# Print the summary statistics in a nice format using kableExtra
+kable(summary_data, caption = "Summary Statistics of Voting Difficulty by Party Affiliation") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE) %>%
+  column_spec(1, bold = TRUE) %>%
+  column_spec(2:5, width = "5cm")
+```
+
+# Stating a Hypothesis
+
+Null Hypothesis (H0): Democratic voters and Republican voters experience the same level of difficulty when voting.
+
+Alternative Hypothesis (H1): Democratic voters and Republican voters experience different levels of difficulty when voting.
+
+# Test Selection and Evaluation of Assumptions
+
+The analysis employs the Wilcoxon Rank Sum Test to compare the voting difficulty between Democrats and Republicans.
+This nonparametric test is suitable for ordinal data and does not assume normal distribution, making it ideal for the votehard variable.
+The test evaluates whether there is a significant difference in the distributions of voting difficulty between the two groups.
+
+The assumptions for the Wilcoxon rank-sum test (also known as the Mann-Whitney U test) are as follows:
+
+\- **Independent Samples:** The two samples should be independent of each other.
+
+\- **Ordinal Scale:** The data should be at least ordinal, meaning that the observations can be ranked.
+
+**- Same Shape Distribution:** The distributions of the two groups should have the same shape, although they can differ in location.
+
+```{r echo=TRUE}
+# Filter out NA values for votehard and party_affiliation
+filtered_data <- data %>%
+  filter(!is.na(votehard) & !is.na(party_affiliation))
+
+# Create the density plot to visualize distribution
+density_plot <- ggplot(filtered_data, aes(x = votehard, fill = party_affiliation)) +
+  geom_density(alpha = 0.5, adjust = 5) +  # Adjust the bandwidth if necessary
+  labs(title = "Density Plot of Voting Difficulty by Political Affiliation",
+       x = "Voting Difficulty",
+       y = "Density",
+       fill = "Party Affiliation") +
+  theme_minimal() +
+  xlim(-1, 5.5)  # Set x-axis limits to show the full range of data
+
+# Print the plot
+print(density_plot)
+
+# Jitter plot to visualize the distribution of votehard by party affiliation
+jitter_plot <- ggplot(filtered_data, aes(x = party_affiliation, y = votehard, color = party_affiliation)) +
+  geom_jitter(width = 0.2, height = 0.2) +
+  labs(title = "Jitter Plot of Voting Difficulty by Political Affiliation",
+       x = "Party Affiliation",
+       y = "Voting Difficulty",
+       color = "Party Affiliation") + # Rename the legend title
+  theme_minimal()
+
+# Print the plot
+print(jitter_plot)
+```
+
+**1. Independent Samples:** In this analysis, the two samples (Democrats and Republicans) are independent, as they represent responses from different individuals regarding their voting difficulty.
+Therefore, this assumption is met.
+
+**2. Ordinal Scale:** The variable votehard is an ordinal variable, as it represents levels of voting difficulty on a scale from 1 to 5.
+Thus, this assumption is also met.
+
+**3. Same Shape Distribution:**The density and jitter plots reveal that the distributions of voting difficulty for both Democrats and Republicans do not drastically differ in shape.
+Both groups show a concentration of lower difficulty values with some spread towards higher values, meeting the assumption of the Wilcoxon rank-sum test.
+
+The visual inspections from the density and jitter plots suggest that the distributions of voting difficulty scores for Democrats and Republicans do not differ dramatically in shape.
+They both have a concentration of low difficulty scores with some spread towards higher difficulty scores.
+Given these observations, we can reasonably conclude that the data meet the assumptions for the Wilcoxon rank-sum test.
+Therefore, it is appropriate to use this non-parametric test to compare the voting difficulty between the two groups.
+
+# Test Results and Interpretation
+
+```{r echo=TRUE}
+# Wilcoxon rank-sum test
+wilcox_test_result <- wilcox.test(votehard ~ party_affiliation, data = data, na.rm = TRUE)
+
+# Summary of results
+wilcox_test_result
+
+# Interpretation
+if (wilcox_test_result$p.value < 0.05) {
+  print("There is a significant difference in voting difficulty between Democrats and Republicans.")
+} else {
+  print("There is no significant difference in voting difficulty between Democrats and Republicans.")
+}
+```
+
+**Checking Effect size**
+
+To quantify the practical significance, we can calculate the effect size using the rank-biserial correlation, which is appropriate for the Wilcoxon rank-sum test:
+
+The rank-biserial correlation provides a measure of effect size, indicating the strength and direction of the association between party affiliation and voting difficulty.
+Given the small difference in means and the moderate overlap in distributions, the practical significance suggests a meaningful but not large effect.
+
+```{r}
+# Calculate effect size 
+library(rcompanion) 
+rank_biserial <- wilcoxonR (x = data$votehard[data$party_affiliation == "Democrat"], y = data$votehard[data$party_affiliation == "Republican"]) rank_biserial
+```
+
+Checking the effect size r=ZNr = \frac{Z}{\sqrt{N}}r=NZ where Z is the test statistic from the Wilcoxon rank-sum test and N is the total number of observations.
+
+Small effect: 𝑟 = 0.1, Medium effect: 𝑟 = 0.3, Large effect: 𝑟 = 0.5
+
+```{r}
+# Extract Z value from the test
+Z <- qnorm(wilcox_test_result$p.value / 2)
+
+# Calculate the total number of observations
+N <- nrow(data)
+
+# Calculate the effect size
+r <- Z / sqrt(N)
+
+# Print the effect size
+r
+```
+
+**Statistical Significance:** The test yielded a W statistic of 174540 and a p-value of 0.001447.
+Given that the p-value is much smaller than the conventional threshold of 0.05, we reject the null hypothesis.
+Therefore, there is statistically significant evidence to suggest that there is a difference in voting difficulty between Democrats and Republicans.
+
+**Practical Significance:** To assess the practical significance, we consider the direction and magnitude of the observed effect.
+The density and jitter plots of voting difficulty, alongside the summary statistics, provide insights into the practical significance:
+
+**Mean Voting Difficulty:**
+
+\- Democrats: 1.24
+
+\- Republicans: 1.13
+
+**Standard Deviation of Voting Difficulty:**
+
+\- Democrats: 0.65
+
+\- Republicans: 0.45
+
+The difference in mean voting difficulty indicates that, on average, Democrats experience slightly more difficulty in voting compared to Republicans.
+However, the effect size is relatively small, as evidenced by the close means and overlapping distributions in the density and jitter plots.
+
+**Conclusion** The Wilcoxon rank-sum test reveals a statistically significant difference in voting difficulty between Democrats and Republicans (p = 0.001447).
+Practically, while Democrats face slightly more voting difficulty on average, the effect size is moderate, suggesting that the difference, though significant, may not be substantial in real-world terms.
+In summary, the results indicate that while there is a statistically significant difference in voting difficulty between party affiliations, the practical significance and effect size suggest that the difference, though meaningful, is not large.
