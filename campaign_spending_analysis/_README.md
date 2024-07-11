@@ -1,5 +1,6 @@
 # Campaign Spending Analysis
-![image](https://github.com/v-acha/Statistical-Analysis/assets/166547727/adda64c2-6453-4405-9b09-6962f892debb) 
+![image](https://github.com/v-acha/Statistical-Analysis/assets/166547727/6aa219c3-44cd-44aa-99c8-552358914e70)
+
 
 ## Project Overview
 This project analyzes the relationship between campaign spending, party affiliation, and election outcomes using the `fec16` dataset from the 2016 election cycle. The main goal is to determine how financial expenditures and party support influence the number of votes received by candidates.
