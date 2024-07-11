@@ -1,5 +1,5 @@
 # Voting Difficulty Analysis
-![alt text](<Screenshot 2024-06-30 054156.png>)
+![image](https://github.com/v-acha/Statistical-Analysis/assets/166547727/204b5999-12f4-46a6-9129-6e8ab4928b0a)
 ## Project Overview
 This project analyzes the voting difficulty experienced by Democratic and Republican voters using data from the ANES 2022 Pilot Study. The main goal is to determine if there is a statistically significant difference in voting difficulty between the two groups.
 
