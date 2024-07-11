@@ -45,17 +45,43 @@ new_df <- new_df %>%
     party == "REP" ~ "Republican",
     TRUE ~ "Other Party"
   ))
-
-# Produce the scatter plot
+# Create Scatter Plot with formatted y-axis
 ggplot(new_df, aes(x = ttl_disb, y = general_votes, color = candidate_party)) +
-  geom_point() +
-  labs(
-    title = "Scatter Plot of General Votes vs. Total Disbursements",
-    x = "Total Disbursements",
-    y = "General Votes",
-    color = "Candidate Party"
-  ) +
-  theme_minimal()
+  geom_point(alpha = 0.6) +
+  scale_x_continuous(labels = scales::dollar) +
+  scale_y_continuous(labels = scales::comma) +
+  labs(title = "Total Disbursments vs. General Votes",
+       x = "Total Disbursements ($)",
+       y = "General Votes",
+       color = "Party Affiliation") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+# Create Box Plot
+ggplot(new_df, aes(x = candidate_party, y = ttl_disb, fill = candidate_party)) +
+  geom_boxplot() +
+  scale_y_continuous(labels = scales::dollar) +
+  labs(title = "Total Disbursements by Party Affiliation",
+       x = "Party Affiliation",
+       y = "Total Disbursements ($)",
+       fill = "Party Affiliation") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
+  
+  # Create Bar Chart for Average Votes
+  average_votes <- new_df %>%
+  group_by(candidate_party) %>%
+  summarise(avg_votes = mean(general_votes, na.rm = TRUE))
+
+ggplot(average_votes, aes(x = candidate_party, y = avg_votes, fill = candidate_party)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Average Votes Received by Party Affiliation",
+       x = "Party Affiliation",
+       y = "Average Votes Received",
+       fill = "Party Affiliation") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
+
 
 # Perform linear regression
 model <- lm(general_votes ~ ttl_disb + candidate_party, data = new_df)
