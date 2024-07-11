@@ -2,7 +2,7 @@
 ![image](https://github.com/v-acha/Statistical-Analysis/assets/166547727/64ccdf25-6b75-42e3-9770-0948e03c6a68)
 
 # Learning Stastics Through Projects
-Welcome to my Statistics Project repository! Here, you’ll find a range of projects focused on statistical analysis, hypothesis testing, data visualization, and more. Each project is designed to deepen my understanding and proficiency in statistics. Explore the code, datasets, and documentation, and feel free to provide your feedback!
+Welcome to my Statistics Project repository! Here, you’ll find a range of projects focused on statistical analysis, hypothesis testing, data visualization, and more. Each project is designed to deepen my understanding and proficiency in statistics. Explore the code, datasets, and documentation to see how statistical methods are applied in various scenarios. I aim to continuously improve my skills and knowledge through these projects. Your feedback and insights are welcome and appreciated!
 
 1. [Voting Difficulty Analysis](https://github.com/v-acha/Statistical-Analysis/tree/main/voting_dfficulty_testing)
    - **Description:** This project entails analyzing salary data gathered from a TikTok survey to predict salary amounts based on various categories and gender, using specific variables as predictors.
