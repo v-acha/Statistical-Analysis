@@ -252,7 +252,7 @@ filtered_data <- data %>%
 # Create the density plot to visualize distribution
 density_plot <- ggplot(filtered_data, aes(x = votehard, fill = party_affiliation)) +
   geom_density(alpha = 0.5, adjust = 5) +  # Adjust the bandwidth if necessary
-  labs(title = "Density Plot of Voting Difficulty by Political Affiliation",
+  labs(title = "Voting Difficulty by Political Affiliation",
        x = "Voting Difficulty",
        y = "Density",
        fill = "Party Affiliation") +
@@ -265,7 +265,7 @@ print(density_plot)
 # Jitter plot to visualize the distribution of votehard by party affiliation
 jitter_plot <- ggplot(filtered_data, aes(x = party_affiliation, y = votehard, color = party_affiliation)) +
   geom_jitter(width = 0.2, height = 0.2) +
-  labs(title = "Jitter Plot of Voting Difficulty by Political Affiliation",
+  labs(title = "Voting Difficulty by Political Affiliation",
        x = "Party Affiliation",
        y = "Voting Difficulty",
        color = "Party Affiliation") + # Rename the legend title
@@ -305,19 +305,9 @@ if (wilcox_test_result$p.value < 0.05) {
   print("There is no significant difference in voting difficulty between Democrats and Republicans.")
 }
 ```
-
 **Checking Effect size**
 
-To quantify the practical significance, we can calculate the effect size using the rank-biserial correlation, which is appropriate for the Wilcoxon rank-sum test:
-
-The rank-biserial correlation provides a measure of effect size, indicating the strength and direction of the association between party affiliation and voting difficulty.
-Given the small difference in means and the moderate overlap in distributions, the practical significance suggests a meaningful but not large effect.
-
-```{r}
-# Calculate effect size 
-library(rcompanion) 
-rank_biserial <- wilcoxonR (x = data$votehard[data$party_affiliation == "Democrat"], y = data$votehard[data$party_affiliation == "Republican"]) rank_biserial
-```
+To quantify the practical significance, we can calculate the effect size by extracting the z value from the test:
 
 Checking the effect size r=ZNr = \frac{Z}{\sqrt{N}}r=NZ where Z is the test statistic from the Wilcoxon rank-sum test and N is the total number of observations.
 
