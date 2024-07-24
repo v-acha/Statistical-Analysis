@@ -1,0 +1,227 @@
+---
+title: "Describing the Relationship Between Weekly Earnings and Time Spent on Eldercare"
+author: "Vanellsa Acha, Victoria Do, Javier Mendoza"
+date: "2024-07-20"
+output:
+  pdf_document:
+    latex_engine: xelatex
+  html_document:
+    df_print: paged
+urlcolor: blue
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(car)
+library(readr)
+library(knitr)
+library(kableExtra)
+library(ggplot2)
+library(dplyr)
+library(lmtest)
+library(stargazer)
+library(caret)
+library(cowplot)
+
+theme_set(theme_bw())
+
+options(tinytex.verbose = TRUE)
+knitr::opts_chunk$set(echo=FALSE, message=FALSE)
+```
+\maketitle
+\newpage
+## Introduction:
+With an aging population and the escalating cost of healthcare, understanding the relationship between income and time spent on elder care is increasingly important. This study explores whether individuals with different income levels vary in their care giving responsibilities. Investigating this relationship sheds light on the economic and social dynamics that caregivers encounter, revealing how financial capacity and household structure impact elder care. This analysis aims to provide insights into the challenges and resources available to family caregivers, contributing to a deeper understanding of the pressures faced by those providing care. By examining these factors, we hope to inform policies and support systems that can better address the needs of caregivers in our society.
+
+## The Research Question
+
+(**What is the relationship between the number of minutes spent caring for aged adults and income?**)
+
+## Data Source
+The data for this analysis is sourced from the American Time Use Survey (ATUS), which is sponsored by the Bureau of Labor Statistics and conducted by the U.S. Census Bureau. The ATUS is a nationally representative survey that samples individuals from households that have completed their final month of interviews for the Current Population Survey (CPS). Participants are asked to provide a detailed 24-hour diary of their activities from 4 a.m. on the previous day until 4 a.m. on the interview day. Data collection is carried out through telephone interviews by trained interviewers who ask respondents to recall and describe their activities, including start and end times, locations, and accompanying persons. Each respondent provides a single day’s worth of time use data, making individuals the primary units of observation. The survey also gathers demographic, employment, and household information, facilitating comprehensive analyses of time use patterns across different population groups. Key features of the ATUS data include unique identifiers (TUCASEID and TULINENO) for each household and individual, ensuring anonymity and facilitating data linkage; TRTEC, which measures the total time spent providing elder care in minutes; TRERNWA, which records weekly earnings at the main job with two implied decimals, indicating financial capacity; and statistical weights to ensure the representatives of survey results, accounting for the complex sampling design and response rates.
+
+## Data Wrangling
+The data set was filtered to include only valid entries for key variables: total time spent providing elder care (TRTEC), weekly earnings (TRERNWA), presence of children (TRHHCHILD), full-time/part-time status (TRDPFTPT), total hours worked (TEHRUSLT), and presence of a partner (TRSPPRES). Invalid values were removed, and transformations were applied to convert weekly earnings to actual dollar amounts and log-transform skewed variables for our second model. Specifically, TRERNWA was divided by 100 and then log-transformed, while TRTEC and TEHRUSLT were also log-transformed. The presence of a partner was re-coded into two categories ("Partner Present" and "No Partner Present"). This process reduced our data set from 8,387 row and 165 columns to a final data set of 163 rows and 14 columns, ensuring that the analysis is based on accurate and reliable data.
+
+```{r echo=FALSE ,include=FALSE}
+data <- read.csv("atusresp_2023.dat",header = TRUE)
+head(data)
+
+#Cleaning the data
+# Select relevant columns, filter out invalid values (-1) and transform variables
+data <- data %>%
+  select(TUCASEID, TRTEC, TRERNWA, TRHHCHILD, TRDPFTPT, TEHRUSLT, TRSPPRES, TRYHHCHILD, TRTCC, TRTSPOUSE, TRTFAMILY) %>%
+  filter(TRTEC >= 0 & TRERNWA >= 0 & TEHRUSLT >= 0 & TRHHCHILD >= 0) %>%
+  mutate(
+    TRERNWA = TRERNWA / 100,  # Convert earnings to dollars
+    log_TRERNWA = log(TRERNWA + 1),  # Apply log transformation (adding 1 to avoid log(0))
+    log_TRTEC = log(TRTEC + 1),  # Apply log transformation (adding 1 to avoid log(0))
+    log_TEHRUSLT = log(TEHRUSLT + 1),  # Apply log transformation (adding 1 to avoid log(0))
+    TRDPFTPT = factor(TRDPFTPT),  # Convert full-time/part-time status to a factor
+    TRHHCHILD = factor(TRHHCHILD, labels = c("No Children", "Children Present")),  # Convert presence of children in household to a factor
+    TRSPPRES = dplyr::recode(TRSPPRES, `1` = "Partner Present", `2` = "Partner Present", `3` = "No Partner Present"),  # Recode partner presence
+    TRSPPRES = factor(TRSPPRES, levels = c("Partner Present", "No Partner Present")),  # Factorize partner presence
+    TRTCC = TRTCC,  # Total time spent providing childcare
+    TRTSPOUSE = TRTSPOUSE,  # Total time spent providing care for a spouse
+    TRTFAMILY = TRTFAMILY  # Total time spent providing care for family members
+  )
+# View the number of rows
+nrow(data)  # Returns the number of rows
+
+# View the number of columns
+ncol(data)  # Returns the number of columns
+
+# Summary statistics
+summary(data)
+
+```
+
+## Operationalization
+In this analysis, we investigate the relationship between time spent providing eldercare (TRTEC) and weekly earnings (TRERNWA). Weekly earnings reflect an individual's financial capacity from their main job, while time spent providing eldercare captures caregiving responsibilities. These variables were chosen for their direct relevance to the research question. Weekly earnings (TRERNWA) measure economic capacity, influencing the ability to allocate resources towards caregiving, and are the most frequently used earnings variable in ATUS for employed individuals. Time spent providing eldercare (TRTEC) directly captures caregiving duties, ideal for understanding the trade-offs between income and caregiving. Alternatives such as hourly, monthly, or annual earnings (TRERNHLY, TEERNWKP, TEERNANN) and secondary job hours (TEHRUSL2) were considered but not used due to reduced observation counts. Additional variables such as total weekly working hours (TEHRUSLT), presence of children in the household (TRHHCHILD), and presence of a partner (TRSPPRES) were included in our models to better capture the relationship. By selecting weekly earnings (TRTEC) and time spent providing care per week (TRERNWA) along with incorporating these additional variables, this analysis aims to explore how financial resources and household dynamics affect caregiving responsibilities, providing insights into the economic and social dynamics faced by caregivers.
+
+```{r echo=FALSE, include=TRUE, fig.height = 3, fig.width = 7}
+# Create the scatter plot
+ggplot(data, aes(x = TRERNWA, y = TRTEC)) +
+  geom_smooth(method = "lm", se = FALSE, color = "red") +
+  geom_point(alpha = 0.5, color = "blue") +
+  labs(
+    title = "Fig 1: Weekly Earnings and Time Spent Providing Eldercare",
+    x = "Weekly Earnings ($)",
+    y = "Eldercare Time (minutes)"
+  ) +
+  theme_minimal()  +
+  theme(plot.title = element_text(size = 12, face = "bold"))
+  #geom_smooth(method = "lm", col = "blue", se = FALSE)
+
+```
+The plot shows that there is a slight negative trend indicating that higher weekly earnings are associated with slightly less time spent on elder care, though the relationship appears weak and dispersed.
+
+## Model Assumptions
+The assumptions for our large-sample linear model include independent and identically distributed (IID) sampled data, the existence of a unique Best Linear Predictor (BLP), and homoscedasticity. The ATUS data's stratified random sampling supports the IID assumption, ensuring each observation is independent and identically distributed, though slight dependencies may exist due to household dynamics. The existence of a unique BLP is supported by the absence of infinite variances and heavy tail distributions, and by the lack of perfect collinearity among input variables such as "Weekly Earnings," "Presence of Children," and "Presence of Spouse." However, multicollinearity still needs monitoring. Homoscedasticity, requiring consistent variability in the dependent variable across all levels of the independent variable, shows some violations, as scatter plots suggest heteroscedasticity. Logarithmic transformations of earnings and elder care time address this issue partially, indicating further refinement is needed.
+
+## Model Specification
+For this study, we specified a set of regression models to describe the relationship between weekly earnings and time spent providing elder care. Logarithmic transformations were applied to variables like weekly earnings and elder care time to address skewness and ensure a more linear relationship. Additional factors such as employment status, total weekly hours worked, the presence of children and a spouse were incorporated into models three and four to account for household dynamics. These transformations were chosen to normalize the skewed distributions of the original variables. Ordinal variables were appropriately converted to factors to avoid treating them as metric ensuring accurate representation in the analysis.
+
+```{r echo=FALSE, include=FALSE,results='asis'}
+
+# Simple Linear Regression Model
+model1 <- lm(TRTEC ~ TRERNWA, data = data)
+
+# Log-Transformed Model with Part-Time/Full-Time Status
+model2 <- lm(log_TRTEC ~ log_TRERNWA + TRDPFTPT, data = data)
+
+# Extended Model with additional variables
+model3 <- lm(log_TRTEC ~ log_TRERNWA + TRHHCHILD + TRSPPRES, data = data)
+
+# Model with Total Hours Worked
+model4 <- lm(log_TRTEC ~ log_TRERNWA + TRDPFTPT + TRHHCHILD + TRSPPRES + TEHRUSLT, data = data)
+
+
+# Generate the stargazer table
+stargazer(model1, model2, model3, model4,
+            type = "latex",
+            title = "Regression Models Describing the Relationship Between Weekly Earnings and Time Spent on Eldercare",
+            dep.var.labels = c("Eldercare Time", "Eldercare Time (log)"),#dep.var.labels.include = FALSE, # Remove default dependent variable labels"Weekly Earnings (log)",
+            #column.labels = c("Eldercare Time", "Eldercare Time (log)"),
+            covariate.labels = c( "Weekly Earnings", "Weekly Earnings (log)","Part-Time Status", "Presence of Children", "Presence of Spouse", "Total Hours Worked"),
+            star.cutoffs = c(0.05, 0.01, 0.001),
+            notes = "Standard errors are in parentheses.",
+            no.space = TRUE,
+            single.row = TRUE,
+            out = "model_output.tex"  )
+```
+
+\input{model_output.tex}
+
+## Model Results and Interpretation
+Our final model tested three variables: log-transformed weekly earnings (log_TRERNWA), presence of children in the household (TRHHCHILD), and presence of a spouse (TRSPPRES). The coefficient for log-transformed weekly earnings was -0.03005, which is not statistically significant (p = 0.820), indicating that income does not significantly impact elder care time. Part-time status (TRDPFTPT2), and total hours worked (TEHRUSLT) also do not show significant associations with elder care time. In contrast, the presence of children in the household had a coefficient of 1.04513 (p = 0.000465), showing practical significance, with households having children spending approximately 2.84 times more time on elder care (exp(1.04513) ≈ 2.84). Additionally, the presence of a spouse had a coefficient of 0.22942 (p = 0.066), which suggests a marginally significant trend where households with a spouse present might spend about 26% more time on elder care (exp(0.22942) ≈ 1.26). Overall, while income does not significantly affect eldercare time, the presence of children in the household significantly increases the time dedicated to elder care, highlighting the compounded care giving responsibilities in such households. Model 4 provides the most comprehensive insight into the factors influencing time spent on eldercare by considering the combined effects of earnings, part-time/full-time status, presence of children, presence of spouse, and total hours worked. While earnings were the initial focus, this model highlights that family dynamics, particularly the presence of children, play a more critical role. These findings suggest that policies supporting caregivers should consider the household composition, especially focusing on those with children, to effectively address caregiving challenges.
+
+\newpage
+## Appendix
+Link to datasource: 
+
+### List of Model Specifications
+Models 1 to 3 collectively show that weekly earnings and part-time/full-time status do not significantly impact the time spent on eldercare, with minimal explanatory power (R² ranging from 0.001 to 0.005). However, the presence of a spouse significantly increases eldercare time, improving the model fit to explain 9.3% of the variability (R² = 0.093). Other factors such as part-time status and the presence of children are not statistically significant.
+
+### A Residuals-vs-Fitted-values Plot
+```{r echo=FALSE, include=TRUE, fig.height = 3, fig.width = 7}
+# Create a data frame with predicted values
+data$predicted_log_TRTEC <- predict(model4, data)
+
+# Create the plot
+ggplot(data, aes(x = log_TRERNWA, y = log_TRTEC)) +
+  geom_point(alpha = 0.5, color = "blue") +
+  geom_smooth(method = "lm", se = TRUE, color = "red") +
+  labs(
+    title = "Fig 2: Log of Weekly Earnings and Log of Time Spent on Eldercare",
+    x = "Weekly Earnings ($)",
+    y = "Eldercare Time (minutes)"
+  ) +
+  theme_minimal()+
+  theme(plot.title = element_text(size = 12, face = "bold"))
+```
+The fitted regression line shows a slight negative relationship, indicating that higher earnings are associated with marginally less time spent on eldercare, but the effect is weak and not practically significant.
+
+### Distribution of Time Spent of Eldercare vs Weekly Earnings
+```{r echo=FALSE, include=FALSE, fig.height = 2.5, fig.width = 7}
+# Define a function to create histograms
+create_histogram <- function(data, x, title, x_label, fill_color) {
+  ggplot(data, aes(x = !!sym(x))) +
+    geom_histogram(bins = 30, fill = fill_color, alpha = 0.7) +
+    labs(title = title, x = x_label, y = 'Frequency') +
+    theme(plot.title = element_text(size = 8), 
+          axis.title = element_text(size = 10),
+          axis.text = element_text(size = 8),
+          plot.margin = margin(5, 5, 5, 5))
+}
+# Create the first plot
+plot1 <- create_histogram(data, "TRTEC", 'Eldercare Time (minutes)', 'Minutes', 'blue')
+
+# Create the second plot
+plot2 <- create_histogram(data, "TRERNWA", 'Weekly Earnings ($)', 'Earnings ($)', 'green')
+
+# Combine the plots side by side with reduced size
+combined_plot <- plot_grid(plot1, plot2, ncol = 2, rel_widths = c(1, 1), labels = "AUTO", label_size = 8)
+
+# Print the combined plot to ensure it is created
+print(combined_plot)
+```
+
+
+
+```{r echo=FALSE, include=TRUE, fig.height = 2.5, fig.width = 7}
+
+# Define a function to create histograms
+create_histogram <- function(data, x, title, x_label, fill_color) {
+  ggplot(data, aes(x = !!sym(x))) +
+    geom_histogram(bins = 30, fill = fill_color, alpha = 0.7) +
+    labs(title = title, x = x_label, y = 'Frequency') +
+    theme(plot.title = element_text(size = 8), 
+          axis.title = element_text(size = 10),
+          axis.text = element_text(size = 8),
+          plot.margin = margin(5, 5, 5, 5))
+}
+
+# Create the first plot
+plot1 <- create_histogram(data, "TRTEC", 'Eldercare Time (minutes)', 'Minutes', 'blue')
+
+# Create the second plot
+plot2 <- create_histogram(data, "TRERNWA", 'Weekly Earnings ($)', 'Earnings ($)', 'green')
+
+# Combine the plots side by side with reduced size
+combined_plot <- plot_grid(plot1, plot2, ncol = 2, rel_widths = c(1, 1), labels = "AUTO", label_size = 8)
+
+# Add a title to the combined plot
+final_plot <- plot_grid(
+  ggdraw() + draw_label("Fig 3: Distribution of Time Spent on Eldercare vs Weekly Earnings", size = 12, fontface = 'bold'),
+  combined_plot,
+  ncol = 1,
+  rel_heights = c(0.1, 1)
+)
+
+# Print the final plot to ensure it is created
+print(final_plot)
+```
+
+
+
