@@ -1,4 +1,5 @@
 # Regression Analysis: Relationship between Income and providing elder care
+![image](https://github.com/user-attachments/assets/9ab2ff00-e9f4-48d6-9b49-be393d0d287b)
 ## Introduction
 This project investigates the relationship between weekly earnings and time spent on eldercare. By examining various factors that could influence the time devoted to eldercare, we aim to understand the underlying dynamics and identify significant predictors.
 
